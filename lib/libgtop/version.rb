@@ -4,5 +4,5 @@
 # Copyright, 2026, by General Intelligence Systems.
 
 module Libgtop
-  VERSION = "2.0.0"
+  VERSION = "1.0.0"
 end
