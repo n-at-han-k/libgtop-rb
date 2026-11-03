@@ -8,6 +8,43 @@ require "libgtop"
 GTop.constants.size  # the whole namespace, from the typelib
 ```
 
+## Read this first: the functions are not callable
+
+This gem loads, defines the `GTop` namespace, and gives you 372 constants and
+42 record classes. It cannot call libgtop.
+
+Every function in libgtop takes its result struct as the first argument —
+`glibtop_get_proc_uid(glibtop_proc_uid *buf, pid_t pid)` — and libgtop names
+those records in lowercase. GObjectIntrospection resolves an argument's Ruby
+class from the raw GI name:
+
+```ruby
+# gobject-introspection/registered-type-info.rb, resolve_class
+mod.const_defined?(name)   # name == "glibtop_proc_uid"
+```
+
+`const_defined?` raises `NameError: wrong constant name` for a lowercase name,
+so the call fails while normalising its arguments:
+
+```ruby
+GTop.glibtop_init
+GTop.glibtop_get_proc_uid(GTop::ProcUid.new, Process.pid)
+# => NameError: wrong constant name glibtop_proc_uid
+```
+
+Renaming the class to `ProcUid` — which this gem does, because otherwise the
+records are not defined at all — does not help: the resolution uses libgtop's
+name, not the gem's.
+
+**So a Ruby port needing process statistics should read `/proc` directly**,
+which is what console-rb does. This is a limitation of ruby-gnome's loader
+meeting a C library whose type names are not valid Ruby constants, and fixing
+it means changing `resolve_class` upstream, not this gem.
+
+The gem is published anyway because the namespace, its constants and its record
+layouts are real and correct, and because the next person to consider binding
+libgtop should find this written down rather than rediscover it.
+
 ## How this works, and why there is nothing to compile
 
 libgtop ships a GObject Introspection typelib that describes every class,
